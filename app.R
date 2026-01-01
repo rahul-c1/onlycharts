@@ -4,6 +4,7 @@ library(ggplot2)
 library(lubridate)
 library(gridExtra)
 library(TTR)
+options(shiny.maxRequestSize=1000*1024^2)
 
 #The 6 SOS Conditions Tracked:
 
