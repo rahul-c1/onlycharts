@@ -17,21 +17,32 @@ options(shiny.maxRequestSize=1000*1024^2)
 
 # UI
 ui <- fluidPage(
-  titlePanel("Stock Chart Analysis with Technical Indicators"),
-  
+ titlePanel("Stock Chart Analysis with Technical Indicators"),
   sidebarLayout(
     sidebarPanel(
       width = 3,
-      fileInput("datafile", "Upload CSV (symbol, date, open, high, low, close, volume)",
-                accept = c(".csv")),
       
-      hr(),
-      textInput("symbol", "Enter Symbol:", value = ""),
+      # Data source selection
+      radioButtons("dataSource", "Select Data Source:",
+                   choices = list("Upload CSV File" = "upload",
+                                  "Load from GitHub URL" = "github"),
+                   selected = "upload"),
       
-      numericInput("lookback_days", "Lookback Period (days):",
-                   value = 60, min = 20, max = 252, step = 10),
+      # Conditional panel for file upload
+      conditionalPanel(
+        condition = "input.dataSource == 'upload'",
+        fileInput("datafile", "Upload CSV (symbol, date, open, high, low, close, volume)",
+                  accept = c(".csv"))
+      ),
       
-      actionButton("show_chart", "Show Chart", class = "btn-primary btn-block"),
+      # Conditional panel for GitHub URL
+      conditionalPanel(
+        condition = "input.dataSource == 'github'",
+        textInput("githubURL", "GitHub Raw File URL:",
+                  value = "",
+                  placeholder = "https://raw.githubusercontent.com/rahul-c1/onlycharts/refs/heads/main/daily_data.csv"),
+        actionButton("loadGithub", "Load Data", class = "btn-primary")
+      ),
       
       hr(),
       h4("Chart Settings"),
@@ -52,19 +63,19 @@ ui <- fluidPage(
   )
 )
 
+
 # Server
 server <- function(input, output, session) {
   
   # Reactive data storage
+  # Reactive value to store the loaded data
   stock_data <- reactiveVal(NULL)
   
-  # Load data
+  # Handle file upload
   observeEvent(input$datafile, {
     req(input$datafile)
-    
     tryCatch({
       df <- read.csv(input$datafile$datapath, stringsAsFactors = FALSE)
-      
       # Validate columns
       required_cols <- c("symbol", "date", "open", "high", "low", "close", "volume")
       if (!all(required_cols %in% tolower(names(df)))) {
@@ -72,15 +83,47 @@ server <- function(input, output, session) {
                         type = "error", duration = 5)
         return(NULL)
       }
-      
-      # Standardize column names
+            # Standardize column names
       names(df) <- tolower(names(df))
       df$date <- as.Date(df$date)
-      
+
       stock_data(df)
-      showNotification("Data loaded successfully!", type = "message", duration = 3)
     }, error = function(e) {
-      showNotification(paste("Error loading data:", e$message), type = "error", duration = 5)
+      showNotification(paste("Error loading file:", e$message), 
+                       type = "error", duration = 5)
+    })
+  })
+  
+  # Handle GitHub URL loading
+  observeEvent(input$loadGithub, {
+    req(input$githubURL)
+    
+    # Validate URL
+    if (!grepl("^https://raw.githubusercontent.com/", input$githubURL)) {
+      showNotification("Please use a GitHub raw file URL", 
+                       type = "warning", duration = 5)
+      return()
+    }
+    
+    tryCatch({
+      df <- read.csv(input$githubURL, stringsAsFactors = FALSE)
+            # Validate columns
+      required_cols <- c("symbol", "date", "open", "high", "low", "close", "volume")
+      if (!all(required_cols %in% tolower(names(df)))) {
+        showNotification("CSV must have columns: symbol, date, open, high, low, close, volume",
+                        type = "error", duration = 5)
+        return(NULL)
+      }
+            # Standardize column names
+      names(df) <- tolower(names(df))
+      df$date <- as.Date(df$date)
+
+      stock_data(df)
+      showNotification("Data loaded successfully from GitHub!", 
+                       type = "message", duration = 3)
+    }, error = function(e) {
+      showNotification(paste("Error loading from GitHub:", e$message), 
+                       type = "error", duration = 5)
     })
   })
   
