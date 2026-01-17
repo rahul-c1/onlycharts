@@ -45,6 +45,14 @@ ui <- fluidPage(
       ),
       
       hr(),
+      textInput("symbol", "Enter Symbol:", value = ""),
+      
+      numericInput("lookback_days", "Lookback Period (days):",
+                   value = 60, min = 20, max = 252, step = 10),
+      
+      actionButton("show_chart", "Show Chart", class = "btn-primary btn-block"),
+      
+      hr(),
       h4("Chart Settings"),
       checkboxInput("show_sma", "Show 10-day SMA", value = TRUE),
       checkboxInput("show_sma20", "Show 20-day SMA", value = TRUE),
